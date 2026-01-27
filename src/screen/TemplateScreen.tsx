@@ -8,6 +8,7 @@ const templates = [
     name: "ATS Marketing Resume",
     screen: "ATSPreview",
   },
+  
 ];
 
 const TemplateScreen = () => {
