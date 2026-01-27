@@ -1,6 +1,7 @@
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import TabNavigator from './TabNavigator';
 import JobDetailsScreen from '../screen/JobDetailsScreen';
+import AddForm from '../screen/AddForm';
 
 const Stack = createNativeStackNavigator();
 
@@ -15,6 +16,11 @@ export default function StackNavigator() {
       <Stack.Screen
         name='Job-Detail'
         component={JobDetailsScreen}
+        options={{ headerShown: false }}
+      />
+       <Stack.Screen
+        name='Add-Form'
+        component={AddForm}
         options={{ headerShown: false }}
       />
     </Stack.Navigator>

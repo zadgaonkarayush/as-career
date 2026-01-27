@@ -7,37 +7,50 @@ import {
   ActivityIndicator,
   Linking,
   StyleSheet,
-  ScrollView,
+ 
 } from "react-native";
-import axios from "axios";
+import { SafeAreaView } from "react-native-safe-area-context";
 
-const categories = ["All Jobs", "IT", "Banking", "Govt"];
+import axios from "axios";
+import { Ionicons } from "@expo/vector-icons";
+import { useNavigation } from "@react-navigation/native";
+
+const formatDate = (dateString: string) => {
+  const posted = new Date(dateString);
+  const now = new Date();
+  const diff = Math.floor(
+    (now.getTime() - posted.getTime()) / (1000 * 60 * 60 * 24),
+  );
+
+  if (diff === 0) return 'Today';
+  if (diff === 1) return '1 day ago';
+  return `${diff} days ago`;
+};
 
 const JobListScreen = () => {
+  const navigation = useNavigation();
   const [jobs, setJobs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeCategory, setActiveCategory] = useState("All Jobs");
 
   const fetchJobs = async () => {
     try {
       setLoading(true);
-      const response = await axios.get(
-        "https://jobicy.com/jobs-rss-feed"
-      );
-
-      // Take all jobs as they are, no filters
-      const allJobs = (response.data.jobs || []).map((job: any) => ({
-        id: `arbeitnow-${job.slug}`,
+      const res = await axios.get("https://remotive.com/api/remote-jobs");
+const formattedJobs = res.data.jobs.map((job: any) => ({
+        id: job.id.toString(),
         title: job.title,
-        company_name: job.company_name,
-        category: job.category || "IT",
+        company: job.company_name,
+        location: job.candidate_required_location || 'Remote',
+        tag: job.job_type || 'FULL-TIME',
+        salary: job.salary || 'Not Disclosed',
+        date: job.publication_date,
+        image: 'https://picsum.photos/200', // placeholder
         url: job.url,
-        salary: job.salary || "Not Disclosed",
       }));
 
-      setJobs(allJobs);
-    } catch (error) {
-      console.log("Error fetching jobs:", error);
+      setJobs(formattedJobs);
+    } catch (err) {
+      console.log("Error fetching jobs:", err);
     } finally {
       setLoading(false);
     }
@@ -46,119 +59,171 @@ const JobListScreen = () => {
   useEffect(() => {
     fetchJobs();
   }, []);
-  console.log(jobs)
-
-  const filteredJobs =
-    activeCategory === "All Jobs"
-      ? jobs
-      : jobs.filter((job) =>
-          job.category?.toLowerCase().includes(activeCategory.toLowerCase())
-        );
 
   const applyJob = (url: string) => Linking.openURL(url);
 
   if (loading) {
-    return <ActivityIndicator size="large" style={{ marginTop: 50 }} />;
-  }
-
-  if (!jobs.length) {
     return (
-      <View
-        style={{ flex: 1, justifyContent: "center", alignItems: "center" }}
-      >
-        <Text>No jobs found 😔</Text>
-        <TouchableOpacity onPress={fetchJobs} style={{ marginTop: 12 }}>
-          <Text style={{ color: "#FF7A00", fontWeight: "bold" }}>Retry</Text>
-        </TouchableOpacity>
+      <View style={styles.loader}>
+        <ActivityIndicator size="large" color="#FF7A00" />
+        <Text style={{ marginTop: 10 }}>Loading jobs...</Text>
       </View>
     );
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: "#F6F7FB" }}>
-      <Text style={styles.header}>Latest Job Openings</Text>
+    <SafeAreaView style={styles.container}>
+      {/* HEADER */}
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => navigation.goBack()}>
+          <Ionicons name="arrow-back" size={24} color="#000" />
+        </TouchableOpacity>
 
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={styles.tabs}
-      >
-        {categories.map((cat) => (
-          <TouchableOpacity
-            key={cat}
-            onPress={() => setActiveCategory(cat)}
-            style={[styles.tab, activeCategory === cat && styles.activeTab]}
-          >
-            <Text
-              style={[
-                styles.tabText,
-                activeCategory === cat && styles.activeTabText,
-              ]}
-            >
-              {cat}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
+        <Text style={styles.headerTitle}>Latest Jobs</Text>
 
+        <View style={{ width: 24 }} />
+      </View>
+
+      {/* JOB LIST */}
       <FlatList
-        data={filteredJobs}
-        keyExtractor={(item) => item.id.toString()}
+        data={jobs}
+        keyExtractor={(item) => item.id}
         contentContainerStyle={{ padding: 16, paddingBottom: 120 }}
+        showsVerticalScrollIndicator={false}
         renderItem={({ item }) => (
           <View style={styles.card}>
-            <Text style={styles.category}>{item.category || "IT"}</Text>
-            <Text style={styles.title}>{item.title}</Text>
-            <Text style={styles.company}>
-              {item.company_name} • Remote / India
+            <Text style={styles.category}>{item.category}</Text>
+
+            <Text style={styles.title} numberOfLines={2}>
+              {item.title}
             </Text>
-            <View style={styles.row}>
-              <View style={styles.tag}>
-                <Text style={styles.tagText}>FULL-TIME</Text>
-              </View>
-              <View style={styles.tag}>
-                <Text style={styles.tagText}>₹ {item.salary}</Text>
-              </View>
+
+            <Text style={styles.company}>{item.company} • Remote</Text>
+                  <Text style={styles.date}>{formatDate(item.date)}</Text>
+            
+            <View style={styles.footer}>
+              <Text style={styles.salary}>₹ {item.salary}</Text>
+
               <TouchableOpacity
-                onPress={() => applyJob(item.url)}
                 style={styles.applyBtn}
+                onPress={() => applyJob(item.url)}
               >
-                <Text style={styles.applyText}>Apply Now</Text>
+                <Text style={styles.applyText}>Apply</Text>
               </TouchableOpacity>
             </View>
           </View>
         )}
       />
 
-      <View style={styles.adBanner}>
-        <Text style={{ fontWeight: "bold" }}>
-          Boost Your Profile to 10x Exposure!
+      {/* BOTTOM CTA / AD PLACEHOLDER */}
+      <View style={styles.bottomBanner}>
+        <Text style={{ fontWeight: "600" }}>
+          Build Resume & Apply Faster 🚀
         </Text>
-        <Text style={{ color: "#666", fontSize: 12 }}>
+        <Text style={{ fontSize: 12, color: "#666" }}>
           Upgrade to Premium for early access
         </Text>
       </View>
-    </View>
+    </SafeAreaView>
   );
 };
 
 export default JobListScreen;
 
 const styles = StyleSheet.create({
-  header: { fontSize: 22, fontWeight: "bold", textAlign: "center", marginTop: 16 },
-  tabs: { marginVertical: 12, paddingHorizontal: 10 },
-  tab: { backgroundColor: "#E9EEF6", paddingHorizontal: 18, paddingVertical: 8, borderRadius: 20, marginRight: 10 },
-  activeTab: { backgroundColor: "#FF7A00" },
-  tabText: { color: "#333", fontWeight: "500" },
-  activeTabText: { color: "#fff" },
-  card: { backgroundColor: "#fff", padding: 16, borderRadius: 14, marginBottom: 14, elevation: 2 },
-  category: { color: "#009688", fontWeight: "bold", fontSize: 12 },
-  title: { fontSize: 17, fontWeight: "bold", marginVertical: 4 },
-  company: { color: "#666", marginBottom: 10 },
-  row: { flexDirection: "row", alignItems: "center", flexWrap: "wrap" },
-  tag: { backgroundColor: "#EEF2F7", paddingHorizontal: 10, paddingVertical: 4, borderRadius: 6, marginRight: 8 },
-  tagText: { fontSize: 12, color: "#333" },
-  applyBtn: { marginLeft: "auto", backgroundColor: "#FF7A00", paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8 },
-  applyText: { color: "#fff", fontWeight: "bold" },
-  adBanner: { position: "absolute", bottom: 0, left: 0, right: 0, backgroundColor: "#EEF2F7", padding: 12, borderTopWidth: 1, borderColor: "#ddd" },
+  container: {
+    flex: 1,
+    backgroundColor: "#F6F7FB",
+  },
+
+  loader: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    backgroundColor: "#fff",
+    borderBottomWidth: 1,
+    borderColor: "#eee",
+  },
+
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+  },
+
+  card: {
+    backgroundColor: "#fff",
+    padding: 16,
+    borderRadius: 14,
+    marginBottom: 14,
+    shadowColor: "#000",
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+
+  category: {
+    color: "#009688",
+    fontWeight: "700",
+    fontSize: 12,
+    marginBottom: 4,
+  },
+
+  title: {
+    fontSize: 16,
+    fontWeight: "700",
+    marginBottom: 6,
+  },
+
+  company: {
+    color: "#666",
+    fontSize: 13,
+    marginBottom: 12,
+  },
+
+  footer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+
+  salary: {
+    fontSize: 13,
+    color: "#444",
+  },
+
+  applyBtn: {
+    backgroundColor: "#FF7A00",
+    paddingHorizontal: 18,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+
+  applyText: {
+    color: "#fff",
+    fontWeight: "700",
+  },
+
+  bottomBanner: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: "#EEF2F7",
+    padding: 14,
+    borderTopWidth: 1,
+    borderColor: "#ddd",
+  },
+   date: {
+    fontSize: 12,
+    color: '#999',
+    marginBottom: 6,
+  },
 });
